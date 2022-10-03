@@ -27,7 +27,7 @@ from vcd_cli.utils import restore_session
 from vcd_cli.utils import stderr
 from vcd_cli.utils import stdout
 from vcd_cli.vcd import vcd
-from vcd_cli.search import _search
+from vcd_cli.search import query
 
 
 @vcd.group(short_help='manage VMs')
@@ -366,10 +366,11 @@ def list_vms(ctx):
         filter = 'isVAppTemplate==false;vdc==%s' \
             % (vdc_href)
         fields='name,containerName,status'
+        sort_asc='containerName'
         resource=ResourceType.VM
         if client.is_sysadmin():
             resource=ResourceType.ADMIN_VM
-        _search(ctx, resource.value, query_filter=filter,fields=fields, show_id=False)
+        query(ctx, resource.value, query_filter=filter,fields=fields, show_id=False, sort_asc=sort_asc)
     except Exception as e:
         stderr(e, ctx)
 
