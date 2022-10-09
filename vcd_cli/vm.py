@@ -37,8 +37,12 @@ def vm(ctx):
 
 \b
     Examples
-        vcd vm list
+        vcd vm list --status
             Get list of VMs in current virtual datacenter.
+
+\b
+        vcd vm list --templates
+            Get list of templates available to the current virtual datacenter.
 
 \b
         vcd vm info vapp1 vm1
@@ -358,19 +362,210 @@ def vm(ctx):
 
 @vm.command('list', short_help='list VMs')
 @click.pass_context
-def list_vms(ctx):
+@click.option(
+    '--templates/--vms',
+    'templates',
+    required=False,
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help='show only templates')
+@click.option(
+    '--status',
+    'status',
+    required=False,
+    is_flag=True,
+    show_default=False,
+    default=False,
+    help='show status')
+@click.option(
+    '--maintenance',
+    'maintenance',
+    required=False,
+    is_flag=True,
+    show_default=False,
+    default=False,
+    help='show maintenance mode')
+@click.option(
+    '--hardware',
+    'hardware',
+    required=False,
+    is_flag=True,
+    show_default=False,
+    default=False,
+    help='show cpu/mem ..')
+@click.option(
+    '--hardware-version',
+    'hardware_version',
+    required=False,
+    is_flag=True,
+    show_default=False,
+    default=False,
+    help='show hardware version')
+@click.option(
+    '--network',
+    'network',
+    required=False,
+    is_flag=True,
+    show_default=False,
+    default=False,
+    help='show primary network')
+@click.option(
+    '--snapshot',
+    'snapshot',
+    required=False,
+    is_flag=True,
+    show_default=False,
+    default=False,
+    help='show snapshot')
+@click.option(
+    '--vm-tools',
+    'vm_tools',
+    required=False,
+    is_flag=True,
+    show_default=False,
+    default=False,
+    help='show vm tools')
+@click.option(
+    '--guest-os',
+    'guest_os',
+    required=False,
+    is_flag=True,
+    show_default=False,
+    default=False,
+    help='show guest os')
+@click.option(
+    '--sysadmin',
+    'sysadmin',
+    required=False,
+    is_flag=True,
+    show_default=False,
+    default=False,
+    help='show vsphere details')
+@click.option(
+    '--owner',
+    'owner',
+    required=False,
+    is_flag=True,
+    show_default=False,
+    default=False,
+    help='show owner')
+@click.option(
+    '--date-created',
+    'date_created',
+    required=False,
+    is_flag=True,
+    show_default=False,
+    default=False,
+    help='show created date')
+@click.option(
+    '--expired',
+    'expired',
+    required=False,
+    is_flag=True,
+    show_default=False,
+    default=False,
+    help='show expired info')
+@click.option(
+    '--expired-notification',
+    'expired_notification',
+    required=False,
+    is_flag=True,
+    show_default=False,
+    default=False,
+    help='show expired info')
+def list_vms(ctx, templates, status, maintenance, hardware, hardware_version, network,
+             snapshot, vm_tools, guest_os, sysadmin, owner, date_created, expired, expired_notification):
     try:
         restore_session(ctx, vdc_required=True)
         client = ctx.obj['client']
         vdc_href = ctx.obj['profiles'].get('vdc_href')
-        filter = 'isVAppTemplate==false;vdc==%s' \
-            % (vdc_href)
-        fields='name,containerName,status'
-        sort_asc='containerName'
-        resource=ResourceType.VM
+        # api_version = ctx.obj['profiles'].get('api_version')
+        filter = 'isVAppTemplate==%s;vdc==%s' \
+            % (templates, vdc_href)
+        resource = ResourceType.VM
         if client.is_sysadmin():
-            resource=ResourceType.ADMIN_VM
-        query(ctx, resource.value, query_filter=filter,fields=fields, show_id=False, sort_asc=sort_asc)
+            resource = ResourceType.ADMIN_VM
+        fields = []
+        fields.append('containerName as vapp')
+        fields.append('name')
+        if templates:
+            fields.append('catalogName as catalog')
+            fields.append('isPublished as published')
+        if not templates:
+            fields.append('isAutoNature as standalone')  # 22.0
+            if status:
+                fields.append('status')
+                fields.append('isDeployed as deployed')
+                fields.append(
+                    'isComputePolicyCompliant as compute-policy-compliant')  # 33.0
+                if not client.is_sysadmin():
+                    fields.append('isBusy as busy')
+        if maintenance:
+            fields.append('isInMaintenanceMode as maintenance-mode')
+        if network:
+            fields.append('networkName')  # 5.7
+            fields.append('ipAddress')  # 5.7
+        if vm_tools:
+            fields.append('vmToolsVersion as vm-tools')
+            if not client.is_sysadmin():
+                fields.append('vmToolsStatus as vm-tools-status')
+        if snapshot:
+            if client.is_sysadmin():
+                raise Exception(
+                    '--snapshot is not implemented when logged as provider')
+            fields.append('snapshot')  # 31.0
+            fields.append('snapshotCreated as snapshot-date')  # 31.0
+        if hardware_version:
+            fields.append('hardwareVersion as hardware-version')
+            # not in doc but work in 31.0
+            fields.append(
+                'pvdcHighestSupportedHardwareVersion as pvdc-hardware-version')
+        if hardware:
+            fields.append('numberOfCpus as cpu')
+            fields.append('memoryMB as memory-MB')
+            if not client.is_sysadmin():
+                fields.append('totalStorageAllocatedMb as storage-MB')  # 34.0
+                # fields.append('defaultStoragePolicyName') # 35.0
+            fields.append('storageProfileName as storage-profile')
+            fields.append('hasVgpuPolicy as gpu')  # 36.2
+        if guest_os:
+            fields.append('guestOs as guest-os')
+            # fields.append('detectedGuestOs') #36.2
+        if sysadmin:
+            if not client.is_sysadmin():
+                raise Exception('--sysadmin is only available for provider')
+            fields.append('hostName as compute-host')
+            fields.append('datastoreName')
+            fields.append('vmNameInVc as name-in-vcenter')  # 35.0
+            fields.append('moref')
+            fields.append('encrypted')  # 34.0
+        if owner:
+            if client.is_sysadmin():
+                raise Exception(
+                    'show owner is not implemented when logged as a provider user')
+            fields.append('ownerName as owner')
+        if date_created:
+            fields.append('dateCreated as date-created')  # 34.0
+        if expired:
+            fields.append('isExpired as expired')  # 34.0
+            fields.append('isDeleted as deleted')
+        if expired_notification:
+            if client.is_sysadmin():
+                raise Exception(
+                    'show expired_notification is not implemented when logged as a provider user')
+            fields.append('isAutoUndeployNotified as auto-undeploy-notified')
+            fields.append('autoUndeployDate as date-auto-undeploy-notified')
+            fields.append('isAutoDeleteNotified as auto-delete-notified')
+            fields.append('autoDeleteDate as auto-date-delete')
+
+        fields = ','.join(fields)
+        sort_asc = 'containerName'
+        sort_next = 'name'
+        result = query(ctx, resource.value, query_filter=filter,
+                       fields=fields, sort_asc=sort_asc, sort_next=sort_next)
+        stdout(result, ctx, show_id=False, sort_headers=False)
+
     except Exception as e:
         stderr(e, ctx)
 
