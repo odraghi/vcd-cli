@@ -26,6 +26,7 @@ from pyvcloud.vcd.vm import VM
 from vcd_cli.utils import restore_session
 from vcd_cli.utils import stderr
 from vcd_cli.utils import stdout
+from vcd_cli.utils import date_to_human_readable
 from vcd_cli.vcd import vcd
 from vcd_cli.search import query
 
@@ -570,6 +571,16 @@ def list_vms(ctx, templates, status, maintenance, hardware, hardware_version, ne
         sort_next = 'name'
         result = query(ctx, resource.value, query_filter=filter,
                        fields=fields, sort_asc=sort_asc, sort_next=sort_next)
+        is_json_output=False
+        if ctx is not None and \
+       'json_output' in ctx.find_root().params and \
+       ctx.find_root().params['json_output']:
+            is_json_output=True
+        for r in result:
+            if not is_json_output:
+                for k in ['date-created', 'date-auto-undeploy-notified', 'auto-date-delete']:
+                    if k in r.keys() and r[k]:
+                        r[k] = date_to_human_readable(r[k])
         stdout(result, ctx, show_id=False, sort_headers=False)
 
     except Exception as e:
