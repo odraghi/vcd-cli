@@ -17,6 +17,7 @@ from os import environ
 import re
 import sys
 import traceback
+from datetime import datetime
 
 import click
 from colorama import Fore
@@ -411,3 +412,13 @@ def tuple_to_dict(tup=()):
                 "Length of provided parameter cannot be less than 3.")
         dic.setdefault(a[0], {a[1]: a[2]})
     return dic
+
+
+def date_to_human_readable(date):
+    """Convert iso formated date to human readable date
+
+    Args:
+        date (str): iso formated date
+    """
+    d = datetime.fromisoformat(date)
+    return d.strftime('%Y-%m-%d %H:%M %Z')
