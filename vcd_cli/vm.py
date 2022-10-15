@@ -27,6 +27,8 @@ from vcd_cli.utils import restore_session
 from vcd_cli.utils import stderr
 from vcd_cli.utils import stdout
 from vcd_cli.utils import date_to_human_readable
+from vcd_cli.utils import mb_to_human_readable
+from vcd_cli.utils import bool_string_to_yes_no
 from vcd_cli.vcd import vcd
 from vcd_cli.search import query
 
@@ -503,7 +505,7 @@ def list_vms(ctx, templates, status, maintenance, hardware, hardware_version, ne
                 if not client.is_sysadmin():
                     fields.append('isBusy as busy')
         if maintenance:
-            fields.append('isInMaintenanceMode as maintenance-mode')
+            fields.append('isInMaintenanceMode as in-maintenance-mode')
         if network:
             fields.append('networkName')  # 5.7
             fields.append('ipAddress')  # 5.7
@@ -524,9 +526,10 @@ def list_vms(ctx, templates, status, maintenance, hardware, hardware_version, ne
                 'pvdcHighestSupportedHardwareVersion as pvdc-hardware-version')
         if hardware:
             fields.append('numberOfCpus as cpu')
-            fields.append('memoryMB as memory-MB')
+            fields.append('memoryMB as memory')
             if not client.is_sysadmin():
-                fields.append('totalStorageAllocatedMb as storage-MB')  # 34.0
+                fields.append(
+                    'totalStorageAllocatedMb as allocated-storage')  # 34.0
                 # fields.append('defaultStoragePolicyName') # 35.0
             fields.append('storageProfileName as storage-profile')
             fields.append('hasVgpuPolicy as gpu')  # 36.2
@@ -565,16 +568,25 @@ def list_vms(ctx, templates, status, maintenance, hardware, hardware_version, ne
         sort_next = 'name'
         result = query(ctx, resource.value, query_filter=filter,
                        fields=fields, sort_asc=sort_asc, sort_next=sort_next)
-        is_json_output=False
+        is_json_output = False
         if ctx is not None and \
-       'json_output' in ctx.find_root().params and \
-       ctx.find_root().params['json_output']:
-            is_json_output=True
+            'json_output' in ctx.find_root().params and \
+                ctx.find_root().params['json_output']:
+            is_json_output = True
         for r in result:
             if not is_json_output:
-                for k in ['date-created', 'date-auto-undeploy-notified', 'auto-date-delete']:
-                    if k in r.keys() and r[k]:
+                for k in ['snapshot-date', 'date-created', 'date-auto-undeploy-notified', 'auto-date-delete']:
+                    if k in r.keys():
                         r[k] = date_to_human_readable(r[k])
+                for k in ['memory', 'allocated-storage']:
+                    if k in r.keys():
+                        r[k] = mb_to_human_readable(r[k])
+                for k in ['published', 'standalone', 'deployed', 'compute-policy-compliant',
+                          'busy', 'in-maintenance-mode', 'snapshot', 'gpu', 'encrypted',
+                          'expired', 'deleted', 'auto-undeploy-notified', 'auto-delete-notified']:
+                    if k in r.keys():
+                        r[k] = bool_string_to_yes_no(r[k])
+
         stdout(result, ctx, show_id=False, sort_headers=False)
 
     except Exception as e:
