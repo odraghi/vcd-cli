@@ -420,5 +420,47 @@ def date_to_human_readable(date):
     Args:
         date (str): iso formated date
     """
+    if not date:
+        return '-'
     d = datetime.fromisoformat(date)
     return d.strftime('%Y-%m-%d %H:%M %Z')
+
+
+def mb_to_human_readable(val):
+    """Convert MB value to human readable value
+
+    Args:
+        val (str): value in MB
+    Returns:
+        str: readable value in MB GB or TB
+    """
+    if not val:
+        return '-'
+    gb = 1024
+    tb = gb * 1024
+    val = int(val)
+    if val >= tb:
+        if val % tb == 0:
+            return '%i TB' % (val / tb)
+        return '%0.2f TB' % (val / tb)
+    if val >= gb:
+        if val % gb == 0:
+            return '%i GB' % (val / gb)
+        return '%0.2f GB' % (val / gb)
+    return '%i MB' % val
+
+
+def bool_string_to_yes_no(val):
+    """Convert bool string to yes or no
+
+    Args:
+        val (str): bool str
+
+    Returns:
+        str: 'yes' or 'no'
+    """
+    if not val:
+        return 'no'
+    if val.lower() in ['false', 'undefined']:
+        return 'no'
+    return 'yes'
