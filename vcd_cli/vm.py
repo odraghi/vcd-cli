@@ -365,6 +365,10 @@ def vm(ctx):
                 --sizing 'System Default'
                 --placement 'ESXi in Rack1'
             Update compute policies of VM.
+
+\b
+        vcd vm reapply-compute-policy vapp1 vm1
+            Reapply compute policy of VM.
     """
     pass
 
@@ -1274,6 +1278,19 @@ def reload_from_vc(ctx, vapp_name, vm_name):
     except Exception as e:
         stderr(e, ctx)
 
+
+@vm.command('reapply-compute-policy', short_help='reapply compute policy of VM')
+@click.pass_context
+@click.argument('vapp-name', metavar='<vapp-name>', required=True)
+@click.argument('vm-name', metavar='<vm-name>', required=True)
+def check_compliance(ctx, vapp_name, vm_name):
+    try:
+        restore_session(ctx, vdc_required=True)
+        vm = _get_vm(ctx, vapp_name, vm_name)
+        task = vm.reapply_compute_policy()
+        stdout(task, ctx)
+    except Exception as e:
+        stderr(e, ctx)
 
 @vm.command('check-compliance', short_help='check compliance of VM')
 @click.pass_context
